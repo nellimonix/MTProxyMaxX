@@ -2539,14 +2539,16 @@ restart_proxy_container() {
 _iso_to_epoch() {
     local ts="$1"
     [ -z "$ts" ] && { echo "0"; return; }
-    # Strip sub-second precision and trailing Z (e.g. 2026-03-03T10:00:00.123456789Z -> 2026-03-03T10:00:00)
-    ts="${ts%%.*}"
-    ts="${ts%%Z}"
-    # GNU date: date -d "..." +%s
+    # Strip sub-second precision only, keep Z for UTC (e.g. 2026-03-03T10:00:00.123456789Z -> 2026-03-03T10:00:00Z)
+    local ts_clean="${ts%%.*}"
+    # Restore trailing Z if original had it
+    [[ "$ts" == *Z ]] && ts_clean="${ts_clean}Z"
     local epoch
-    epoch=$(date -d "${ts}" +%s 2>/dev/null) && { echo "$epoch"; return; }
-    # Busybox date: date -D '%Y-%m-%dT%H:%M:%S' -d "..." +%s
-    epoch=$(date -D '%Y-%m-%dT%H:%M:%S' -d "${ts}" +%s 2>/dev/null) && { echo "$epoch"; return; }
+    # GNU date: handles ISO 8601 with Z correctly
+    epoch=$(date -d "${ts_clean}" +%s 2>/dev/null) && [ "$epoch" -gt 0 ] 2>/dev/null && { echo "$epoch"; return; }
+    # Busybox date: strip Z, use explicit format
+    local ts_bb="${ts_clean%Z}"
+    epoch=$(date -D '%Y-%m-%dT%H:%M:%S' -d "${ts_bb}" +%s 2>/dev/null) && [ "$epoch" -gt 0 ] 2>/dev/null && { echo "$epoch"; return; }
     echo "0"
 }
 
@@ -3390,10 +3392,13 @@ get_stats() {
 get_uptime() {
     local sa=$(docker inspect --format '{{.State.StartedAt}}' mtproxymax 2>/dev/null)
     [ -z "$sa" ] && echo 0 && return
-    # Portable ISO 8601 -> epoch (GNU date, busybox date)
-    sa="${sa%%.*}"; sa="${sa%%Z}"
+    local sa_clean="${sa%%.*}"
+    [[ "$sa" == *Z ]] && sa_clean="${sa_clean}Z"
     local se
-    se=$(date -d "$sa" +%s 2>/dev/null) || se=$(date -D '%Y-%m-%dT%H:%M:%S' -d "$sa" +%s 2>/dev/null) || se=0
+    se=$(date -d "$sa_clean" +%s 2>/dev/null) && [ "$se" -gt 0 ] 2>/dev/null || {
+        local sa_bb="${sa_clean%Z}"
+        se=$(date -D '%Y-%m-%dT%H:%M:%S' -d "$sa_bb" +%s 2>/dev/null) || se=0
+    }
     echo $(( $(date +%s) - se ))
 }
 
