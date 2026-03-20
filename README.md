@@ -100,12 +100,16 @@ Each user gets their own **secret key** with a human-readable label:
 
 Fine-grained limits enforced at the engine level:
 
-| Limit | Description | Example |
-|-------|-------------|---------|
-| **Max Connections** | Simultaneous TCP connections | `100` |
-| **Max IPs** | Unique devices/IPs allowed | `5` |
-| **Data Quota** | Total bandwidth cap | `10G`, `500M` |
-| **Expiry Date** | Auto-disable after date | `2026-12-31` |
+| Limit | Description | Example | Best For |
+|-------|-------------|---------|----------|
+| **Max Connections** | Concurrent connections (1 app = 1 conn) | `3` | **Device limiting** |
+| **Max IPs** | Unique IP addresses allowed | `5` | Anti-sharing / abuse |
+| **Data Quota** | Lifetime bandwidth cap | `10G`, `500M` | Fair usage |
+| **Expiry Date** | Auto-disable after date | `2026-12-31` | Temporary access |
+
+> **Tip: Use `conns` for device limits, not `ips`.** Each Telegram app opens exactly 1 connection (multiplexed internally), so `conns 3` = max 3 devices. IP limits are less reliable because mobile users roam between cell towers (briefly showing 2 IPs for 1 device), and multiple devices behind the same WiFi share 1 IP. Use `ips` as a secondary anti-sharing measure.
+>
+> **Traffic and quotas are lifetime (cumulative)**, not monthly. They don't auto-reset. To reset a user's traffic, rotate their secret.
 
 ```bash
 mtproxymax secret setlimits alice 100 5 10G 2026-12-31
@@ -116,27 +120,29 @@ mtproxymax secret setlimits alice 100 5 10G 2026-12-31
 ### 📋 User Management Recipes
 
 <details>
-<summary><b>Prevent Key Sharing</b></summary>
+<summary><b>Limit Devices Per User (Recommended)</b></summary>
 
 ```bash
-mtproxymax secret setlimit alice ips 1    # Single person only
-mtproxymax secret setlimit family ips 5   # Family of up to 5 devices
+mtproxymax secret setlimit alice conns 1    # Single device only
+mtproxymax secret setlimit family conns 5   # Family — up to 5 devices
 ```
 
-If someone with `ips 1` shares their link, the second device gets rejected automatically.
+If someone with `conns 1` shares their link, the second device can't connect. Each Telegram app = exactly 1 connection.
 
 </details>
 
 <details>
-<summary><b>IP Limit Tiers</b></summary>
+<summary><b>Device Limit Tiers</b></summary>
 
-| Scenario | `max_ips` |
-|----------|-----------|
-| Single person, one device | `1` |
-| Single person, multiple devices | `2-3` |
-| Small family | `5` |
-| Small group / office | `20-30` |
-| Public/open link | `0` (unlimited) |
+| Scenario | `conns` | `ips` (optional) |
+|----------|---------|-------------------|
+| Single person, one device | `1` | `2` (allow roaming) |
+| Single person, multiple devices | `3` | `5` |
+| Small family | `5` | `10` |
+| Small group / office | `30` | `50` |
+| Public/open link | `0` | `0` (unlimited) |
+
+> Set `ips` slightly higher than `conns` to allow for mobile roaming (cell tower switches temporarily show 2 IPs for 1 device).
 
 </details>
 
@@ -161,9 +167,9 @@ mtproxymax secret add bob
 mtproxymax secret add charlie
 
 # Each person gets their own link — revoke individually
-mtproxymax secret setlimit alice ips 2
-mtproxymax secret setlimit bob ips 1
-mtproxymax secret setlimit charlie ips 3
+mtproxymax secret setlimit alice conns 2    # 2 devices
+mtproxymax secret setlimit bob conns 1      # 1 device
+mtproxymax secret setlimit charlie conns 3  # 3 devices
 ```
 
 </details>
