@@ -1626,9 +1626,9 @@ secret_add() {
     # Save
     save_secrets
 
-    # Restart if running (run_proxy_container regenerates config)
-    if [ "$no_restart" != "true" ] && is_proxy_running; then
-        restart_proxy_container
+    # Hot-reload config (no restart, no dropped connections)
+    if [ "$no_restart" != "true" ]; then
+        reload_proxy_config
     fi
 
     local full_secret
@@ -1708,8 +1708,8 @@ secret_remove() {
 
     save_secrets
 
-    if [ "$no_restart" != "true" ] && is_proxy_running; then
-        restart_proxy_container
+    if [ "$no_restart" != "true" ]; then
+        reload_proxy_config
     fi
 
     log_success "Secret '${label}' removed"
@@ -1737,9 +1737,9 @@ secret_add_batch() {
         fi
     done
 
-    # Single restart after all additions
-    if [ "$no_restart" != "true" ] && [ $added -gt 0 ] && is_proxy_running; then
-        restart_proxy_container
+    # Single hot-reload after all additions
+    if [ "$no_restart" != "true" ] && [ $added -gt 0 ]; then
+        reload_proxy_config
     fi
 
     echo ""
@@ -1794,9 +1794,9 @@ secret_remove_batch() {
         fi
     done
 
-    # Single restart after all removals
-    if [ "$no_restart" != "true" ] && [ $removed -gt 0 ] && is_proxy_running; then
-        restart_proxy_container
+    # Single hot-reload after all removals
+    if [ "$no_restart" != "true" ] && [ $removed -gt 0 ]; then
+        reload_proxy_config
     fi
 
     echo ""
@@ -1885,10 +1885,7 @@ secret_rotate() {
     SECRETS_CREATED[$idx]="$(date +%s)"
 
     save_secrets
-
-    if is_proxy_running; then
-        restart_proxy_container
-    fi
+    reload_proxy_config
 
     local full_secret
     full_secret=$(build_faketls_secret "$new_secret")
@@ -1956,10 +1953,7 @@ secret_toggle() {
     fi
 
     save_secrets
-
-    if is_proxy_running; then
-        restart_proxy_container
-    fi
+    reload_proxy_config
 
     log_success "Secret '${label}' is now ${SECRETS_ENABLED[$idx]}"
 }
@@ -2055,8 +2049,8 @@ secret_set_limits() {
 
     save_secrets
 
-    if [ "$no_restart" != "true" ] && is_proxy_running; then
-        restart_proxy_container
+    if [ "$no_restart" != "true" ]; then
+        reload_proxy_config
     fi
 
     log_success "Limits updated for '${label}'"
@@ -2556,6 +2550,16 @@ restart_proxy_container() {
     stop_proxy_container 2>/dev/null || true
     docker rm -f "$CONTAINER_NAME" 2>/dev/null || true
     run_proxy_container
+}
+
+# Hot-reload: rewrite config.toml and let the engine pick it up (no restart, no dropped connections)
+# Use this for secret/limit changes. Falls back to restart if container is not running.
+reload_proxy_config() {
+    if ! is_proxy_running; then
+        return 0
+    fi
+    generate_telemt_config || { log_error "Config generation failed"; return 1; }
+    log_info "Config reloaded (hot-reload, no restart)"
 }
 
 # Parse ISO 8601 timestamp to epoch (portable: GNU date, busybox date, Python fallback)
@@ -4739,7 +4743,7 @@ cli_main() {
                         AD_TAG="$2"
                         save_settings
                         log_success "Ad-tag set"
-                        is_proxy_running && { load_secrets; restart_proxy_container; }
+                        load_secrets; reload_proxy_config
                     else
                         log_error "Ad-tag must be 32 hex characters"
                         return 1
@@ -4750,7 +4754,7 @@ cli_main() {
                     AD_TAG=""
                     save_settings
                     log_success "Ad-tag removed"
-                    is_proxy_running && { load_secrets; restart_proxy_container; }
+                    load_secrets; reload_proxy_config
                     ;;
                 view|"")
                     if [ -n "$AD_TAG" ]; then
@@ -5591,11 +5595,7 @@ show_settings_menu() {
                     log_error "Invalid ad-tag (must be 32 hex characters)"
                     press_any_key; continue
                 fi
-                if is_proxy_running; then
-                    echo -en "  ${DIM}Restart proxy now? [Y/n]:${NC} "
-                    local r; read -r r
-                    [[ ! "$r" =~ ^[nN] ]] && { load_secrets; restart_proxy_container || true; }
-                fi
+                load_secrets; reload_proxy_config
                 press_any_key
                 ;;
             7)
