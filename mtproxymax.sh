@@ -2704,10 +2704,10 @@ restart_proxy_container() {
 # Hot-reload: rewrite config.toml and let the engine pick it up (no restart, no dropped connections)
 # Use this for secret/limit changes. Falls back to restart if container is not running.
 reload_proxy_config() {
-    if ! is_proxy_running; then
-        return 0
-    fi
     generate_telemt_config || { log_error "Config generation failed"; return 1; }
+
+    # Signal primary container to reload config (inotify may miss bind-mount changes)
+    is_proxy_running && docker kill -s SIGHUP "$CONTAINER_NAME" 2>/dev/null || true
 
     # Also reload secondary instances if any
     if [ -f "$INSTANCES_FILE" ]; then
@@ -2720,6 +2720,7 @@ reload_proxy_config() {
             PROXY_METRICS_PORT="${INSTANCE_METRICS_PORTS[$i]}"
             generate_telemt_config
             mv "${CONFIG_DIR}/config.toml" "$inst_config" 2>/dev/null
+            docker kill -s SIGHUP "mtproxymax-${INSTANCE_PORTS[$i]}" 2>/dev/null || true
         done
         PROXY_PORT="$_orig_port"
         PROXY_METRICS_PORT="$_orig_mport"
@@ -5909,32 +5910,45 @@ show_secrets_menu() {
                 press_any_key
                 ;;
             2)
-                echo -en "  ${BOLD}Label to remove:${NC} "
+                echo -en "  ${BOLD}Label or # to remove:${NC} "
                 local label
                 read -r label
+                if [[ "$label" =~ ^[0-9]+$ ]] && [ "$label" -ge 1 ] && [ "$label" -le "${#SECRETS_LABELS[@]}" ]; then
+                    label="${SECRETS_LABELS[$((label - 1))]}"
+                fi
                 [ -n "$label" ] && { secret_remove "$label" || true; }
                 press_any_key
                 ;;
             3)
-                echo -en "  ${BOLD}Label to rotate:${NC} "
+                echo -en "  ${BOLD}Label or # to rotate:${NC} "
                 local label
                 read -r label
+                if [[ "$label" =~ ^[0-9]+$ ]] && [ "$label" -ge 1 ] && [ "$label" -le "${#SECRETS_LABELS[@]}" ]; then
+                    label="${SECRETS_LABELS[$((label - 1))]}"
+                fi
                 [ -n "$label" ] && { secret_rotate "$label" || true; }
                 press_any_key
                 ;;
             4)
-                echo -en "  ${BOLD}Label to toggle:${NC} "
+                echo -en "  ${BOLD}Label or # to toggle:${NC} "
                 local label
                 read -r label
+                if [[ "$label" =~ ^[0-9]+$ ]] && [ "$label" -ge 1 ] && [ "$label" -le "${#SECRETS_LABELS[@]}" ]; then
+                    label="${SECRETS_LABELS[$((label - 1))]}"
+                fi
                 [ -n "$label" ] && { secret_toggle "$label" || true; }
                 press_any_key
                 ;;
             5)
                 secret_show_limits
                 echo ""
-                echo -en "  ${BOLD}Label to set limits:${NC} "
+                echo -en "  ${BOLD}Label or # to set limits:${NC} "
                 local label
                 read -r label
+                # If user entered a number, map to the label at that index
+                if [[ "$label" =~ ^[0-9]+$ ]] && [ "$label" -ge 1 ] && [ "$label" -le "${#SECRETS_LABELS[@]}" ]; then
+                    label="${SECRETS_LABELS[$((label - 1))]}"
+                fi
                 if [ -n "$label" ]; then
                     echo -en "  ${BOLD}Max TCP connections (0=unlimited):${NC} "
                     local mc; read -r mc
@@ -5971,9 +5985,12 @@ show_secrets_menu() {
                 press_any_key
                 ;;
             8)
-                echo -en "  ${BOLD}Label:${NC} "
+                echo -en "  ${BOLD}Label or #:${NC} "
                 local note_label
                 read -r note_label
+                if [[ "$note_label" =~ ^[0-9]+$ ]] && [ "$note_label" -ge 1 ] && [ "$note_label" -le "${#SECRETS_LABELS[@]}" ]; then
+                    note_label="${SECRETS_LABELS[$((note_label - 1))]}"
+                fi
                 if [ -n "$note_label" ]; then
                     secret_edit_note "$note_label" || true
                 fi
