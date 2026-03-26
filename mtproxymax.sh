@@ -1310,7 +1310,7 @@ get_cumulative_proxy_stats() {
     [[ "${snap_out:-0}" =~ ^[0-9]+$ ]] || snap_out=0
 
     local live_in=0 live_out=0 conns=0
-    read -r live_in live_out conns < <(get_proxy_stats)
+    read -r live_in live_out conns <<< "$(get_proxy_stats)"
 
     local delta_in=$((live_in - snap_in))
     local delta_out=$((live_out - snap_out))
@@ -1371,7 +1371,7 @@ get_cumulative_user_stats() {
 
     # Get current live Prometheus values
     local live_in=0 live_out=0 live_conns=0
-    read -r live_in live_out live_conns < <(get_user_stats "$user" 2>/dev/null)
+    read -r live_in live_out live_conns <<< "$(get_user_stats "$user" 2>/dev/null)"
 
     # Compute delta since last save
     # If live < snapshot, a restart happened — delta is just the live value
@@ -5013,7 +5013,7 @@ show_status_json() {
     if is_proxy_running; then
         status="running"
         uptime_secs=$(get_proxy_uptime 2>/dev/null) || uptime_secs=0
-        read -r traffic_in traffic_out connections < <(get_cumulative_proxy_stats)
+        read -r traffic_in traffic_out connections <<< "$(get_cumulative_proxy_stats)"
     fi
 
     _load_all_cumulative_user_stats 2>/dev/null
@@ -5202,7 +5202,7 @@ show_status() {
         up_secs=$(get_proxy_uptime)
         uptime_str=$(format_duration "$up_secs")
 
-        read -r traffic_in traffic_out connections < <(get_cumulative_proxy_stats)
+        read -r traffic_in traffic_out connections <<< "$(get_cumulative_proxy_stats)"
     else
         status_str=$(draw_status stopped)
         uptime_str="—"
@@ -5592,7 +5592,7 @@ cli_main() {
             echo ""
             draw_header "TRAFFIC"
             local t_in t_out conns
-            read -r t_in t_out conns < <(get_cumulative_proxy_stats)
+            read -r t_in t_out conns <<< "$(get_cumulative_proxy_stats)"
             # Batch-load all user stats
             _load_all_cumulative_user_stats 2>/dev/null
             echo ""
@@ -5980,7 +5980,7 @@ show_main_menu() {
             local up_secs=$(( $(date +%s) - _cached_start_epoch ))
             uptime_str=$(format_duration "$up_secs")
             # Parse all stats fields in a single read (no awk subprocesses)
-            read -r traffic_in traffic_out connections < <(get_cumulative_proxy_stats)
+            read -r traffic_in traffic_out connections <<< "$(get_cumulative_proxy_stats)"
         else
             status_str=$(draw_status stopped)
             uptime_str="—"
@@ -6542,7 +6542,7 @@ show_traffic_menu() {
     fi
 
     local t_in t_out conns
-    read -r t_in t_out conns < <(get_cumulative_proxy_stats)
+    read -r t_in t_out conns <<< "$(get_cumulative_proxy_stats)"
 
     # Batch-load all user stats in one pass
     _load_all_cumulative_user_stats 2>/dev/null
