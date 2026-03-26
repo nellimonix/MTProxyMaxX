@@ -1082,6 +1082,7 @@ client_ack = 90
 
 [censorship]
 tls_domain = "${domain}"
+unknown_sni_action = "mask"
 mask = ${mask_enabled}
 mask_port = ${mask_port}
 $([ "$mask_enabled" = "true" ] && [ -n "$mask_host" ] && echo "mask_host = \"${mask_host}\"")
