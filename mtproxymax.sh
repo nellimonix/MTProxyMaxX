@@ -6438,6 +6438,7 @@ cli_main() {
                         PROXY_DOMAIN="$new_domain"
                         save_settings
                         log_success "Domain changed to ${new_domain}"
+                        log_warn "Proxy links contain the old domain — share new links with your users"
                         if is_proxy_running; then
                             load_secrets
                             restart_proxy_container
@@ -7461,6 +7462,7 @@ show_settings_menu() {
                 if $_domain_changed; then
                     save_settings
                     log_success "Domain set to ${PROXY_DOMAIN}"
+                    log_warn "Proxy links contain the old domain — share new links with your users"
                     if is_proxy_running; then
                         echo -en "  ${DIM}Restart proxy now? [Y/n]:${NC} "
                         local r; read -r r
@@ -7646,6 +7648,8 @@ show_traffic_menu() {
     echo ""
     echo -e "  ${DIM}[1]${NC} Stream live logs"
     echo -e "  ${DIM}[2]${NC} Connection log"
+    echo -e "  ${DIM}[3]${NC} Engine metrics"
+    echo -e "  ${DIM}[4]${NC} Engine metrics (live)"
     echo -e "  ${DIM}[0]${NC} Back"
 
     local choice
@@ -7660,6 +7664,17 @@ show_traffic_menu() {
                 echo -e "  ${DIM}Connection log is empty${NC}"
             fi
             press_any_key
+            ;;
+        3) show_metrics; press_any_key ;;
+        4)
+            (
+                while true; do
+                    tput clear 2>/dev/null || printf '\033[2J\033[H'
+                    show_metrics
+                    echo -e "  ${DIM}[live — refreshing every 5s, Ctrl+C to stop]${NC}"
+                    sleep 5
+                done
+            )
             ;;
     esac
 }
