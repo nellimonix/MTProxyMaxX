@@ -423,8 +423,6 @@ escape_md() {
     text="${text//\*/\\*}"
     text="${text//_/\\_}"
     text="${text//\`/\\\`}"
-    text="${text//\[/\\[}"
-    text="${text//\]/\\]}"
     echo "$text"
 }
 
@@ -3525,7 +3523,7 @@ except: pass
 
     # Fallback: grep
     if [ -z "$chat_id" ]; then
-        chat_id=$(echo "$response" | grep -oE '"chat"\s*:\s*\{[^}]*"id"\s*:\s*(-?[0-9]+)' | head -1 | grep -oE '-?[0-9]+$')
+        chat_id=$(echo "$response" | grep -oE '"chat"\s*:\s*\{[^}]*"id"\s*:\s*(-?[0-9]+)' | head -1 | grep -oE -- '-?[0-9]+$')
     fi
 
     if [ -n "$chat_id" ]; then
@@ -3974,7 +3972,7 @@ except: pass
         fi
         local _text _cid
         _text=$(echo "$updates" | grep -oE '"text"\s*:\s*"[^"]*"' | tail -1 | sed 's/.*"text"\s*:\s*"//;s/"$//')
-        _cid=$(echo "$updates" | grep -oE '"chat"\s*:\s*\{[^}]*"id"\s*:\s*-?[0-9]+' | tail -1 | grep -oE '-?[0-9]+$')
+        _cid=$(echo "$updates" | grep -oE '"chat"\s*:\s*\{[^}]*"id"\s*:\s*-?[0-9]+' | tail -1 | grep -oE -- '-?[0-9]+$')
         [ -n "$_text" ] && [ -n "$_cid" ] && [ "$_cid" = "$TELEGRAM_CHAT_ID" ] && {
             _new_offset=${_new_offset:-0}
             _process_cmd "$_new_offset" "$_cid" "$_text"
