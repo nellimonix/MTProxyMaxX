@@ -2022,6 +2022,71 @@ secret_rotate() {
     fi
 }
 
+# Set a custom secret key for an existing label
+secret_set_key() {
+    local label="$1" new_key="${2:-}"
+
+    local idx=-1 i
+    for i in "${!SECRETS_LABELS[@]}"; do
+        if [ "${SECRETS_LABELS[$i]}" = "$label" ]; then
+            idx=$i
+            break
+        fi
+    done
+
+    if [ "$idx" = "-1" ]; then
+        log_error "Secret '${label}' not found"
+        return 1
+    fi
+
+    # Interactive prompt if no key provided
+    if [ -z "$new_key" ]; then
+        echo -e "  ${DIM}Enter 32 hex characters (0-9, a-f), or leave empty to auto-generate${NC}"
+        echo -en "  ${BOLD}New secret key:${NC} "
+        read -r new_key
+        [ -z "$new_key" ] && new_key=$(generate_secret)
+    fi
+
+    # Strip optional ee/dd prefix and trailing domain hex if user pasted a full FakeTLS secret
+    new_key="${new_key#ee}"
+    new_key="${new_key#dd}"
+    [ ${#new_key} -gt 32 ] && new_key="${new_key:0:32}"
+
+    if ! [[ "$new_key" =~ ^[0-9a-fA-F]{32}$ ]]; then
+        log_error "Secret must be exactly 32 hex characters"
+        return 1
+    fi
+
+    # Check for duplicate key on a different label
+    for i in "${!SECRETS_KEYS[@]}"; do
+        if [ "$i" != "$idx" ] && [ "${SECRETS_KEYS[$i]}" = "$new_key" ]; then
+            log_error "This key is already used by secret '${SECRETS_LABELS[$i]}'"
+            return 1
+        fi
+    done
+
+    SECRETS_KEYS[$idx]="$new_key"
+    SECRETS_CREATED[$idx]="$(date +%s)"
+    save_secrets
+    reload_proxy_config
+
+    local full_secret server_ip
+    full_secret=$(build_faketls_secret "$new_key")
+    server_ip=$(get_public_ip)
+
+    log_success "Secret key updated for '${label}'"
+    echo ""
+    echo -e "  ${BOLD}New Proxy Link:${NC}"
+    echo -e "  ${CYAN}tg://proxy?server=${server_ip}&port=${PROXY_PORT}&secret=${full_secret}${NC}"
+    echo -e "  ${CYAN}https://t.me/proxy?server=${server_ip}&port=${PROXY_PORT}&secret=${full_secret}${NC}"
+    echo ""
+
+    if [ "$TELEGRAM_ENABLED" = "true" ] && [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+        local msg="🔑 *Secret Key Changed*\n\nLabel: \`${label}\`\n📡 Server: \`${server_ip}\`\n🔌 Port: \`${PROXY_PORT}\`\n🔑 Secret: \`${full_secret}\`"
+        telegram_send_message "$msg" &>/dev/null &
+    fi
+}
+
 # Enable/disable a secret
 secret_toggle() {
     local label="$1" action="${2:-toggle}"
@@ -5275,6 +5340,16 @@ run_installer() {
     draw_header "PROXY CONFIGURATION"
     echo ""
 
+    # Apply env-var presets for non-interactive install (curl | bash)
+    if [ -n "${MTPROXY_PORT:-}" ] && validate_port "$MTPROXY_PORT"; then
+        PROXY_PORT="$MTPROXY_PORT"
+        log_info "Using port from MTPROXY_PORT: ${PROXY_PORT}"
+    fi
+    if [ -n "${MTPROXY_DOMAIN:-}" ] && validate_domain "$MTPROXY_DOMAIN"; then
+        PROXY_DOMAIN="$MTPROXY_DOMAIN"
+        log_info "Using domain from MTPROXY_DOMAIN: ${PROXY_DOMAIN}"
+    fi
+
     # Port
     echo -e "  ${BOLD}Proxy port${NC} ${DIM}(default: 443)${NC}"
     echo -en "  ${DIM}Enter port [443]:${NC} "
@@ -5395,23 +5470,67 @@ run_installer() {
         fi
     fi
 
-    # First secret
+    # First secret — supports env vars for non-interactive installs
     echo ""
     draw_header "PROXY SECRET"
     echo ""
-    echo -e "  ${DIM}A secret key will be auto-generated for your proxy.${NC}"
-    echo -e "  ${DIM}Users need this key to connect. Give it a name to identify it.${NC}"
-    echo -en "  ${DIM}Enter label [default]:${NC} "
-    local first_label
-    read -r first_label
-    [ -z "$first_label" ] && first_label="default"
-    if ! [[ "$first_label" =~ ^[a-zA-Z0-9_-]+$ ]] || [ ${#first_label} -gt 32 ]; then
-        log_warn "Invalid label, using 'default'"
-        first_label="default"
+
+    local first_label="" first_secret=""
+
+    # Preset label from env
+    if [ -n "${MTPROXY_LABEL:-}" ]; then
+        if [[ "$MTPROXY_LABEL" =~ ^[a-zA-Z0-9_-]+$ ]] && [ ${#MTPROXY_LABEL} -le 32 ]; then
+            first_label="$MTPROXY_LABEL"
+            log_info "Using label from MTPROXY_LABEL: ${first_label}"
+        else
+            log_warn "Invalid MTPROXY_LABEL (use a-z, 0-9, _, -, max 32 chars), ignoring"
+        fi
     fi
 
-    local first_secret
-    first_secret=$(generate_secret)
+    # Preset secret from env (strip optional ee/dd prefix and trailing domain hex)
+    if [ -n "${MTPROXY_SECRET:-}" ]; then
+        local _s="${MTPROXY_SECRET#ee}"
+        _s="${_s#dd}"
+        [ ${#_s} -gt 32 ] && _s="${_s:0:32}"
+        if [[ "$_s" =~ ^[0-9a-fA-F]{32}$ ]]; then
+            first_secret="$_s"
+            log_info "Using custom secret from MTPROXY_SECRET"
+        else
+            log_warn "Invalid MTPROXY_SECRET (must be 32 hex chars), will auto-generate"
+        fi
+    fi
+
+    # Interactive prompt for label if env var didn't provide one
+    if [ -z "$first_label" ]; then
+        echo -e "  ${DIM}Each secret key needs a label to identify it in traffic stats.${NC}"
+        echo -en "  ${DIM}Enter label [default]:${NC} "
+        read -r first_label
+        [ -z "$first_label" ] && first_label="default"
+        if ! [[ "$first_label" =~ ^[a-zA-Z0-9_-]+$ ]] || [ ${#first_label} -gt 32 ]; then
+            log_warn "Invalid label, using 'default'"
+            first_label="default"
+        fi
+    fi
+
+    # Interactive prompt for custom secret if env var didn't provide one
+    if [ -z "$first_secret" ]; then
+        echo -e "  ${DIM}Enter a custom 32-char hex secret, or press Enter to auto-generate.${NC}"
+        echo -en "  ${DIM}Custom secret [auto-generate]:${NC} "
+        local _cs
+        read -r _cs
+        if [ -n "$_cs" ]; then
+            _cs="${_cs#ee}"
+            _cs="${_cs#dd}"
+            [ ${#_cs} -gt 32 ] && _cs="${_cs:0:32}"
+            if [[ "$_cs" =~ ^[0-9a-fA-F]{32}$ ]]; then
+                first_secret="$_cs"
+            else
+                log_warn "Invalid secret (must be 32 hex chars), auto-generating"
+            fi
+        fi
+        [ -z "$first_secret" ] && first_secret=$(generate_secret)
+    fi
+
     SECRETS_LABELS=("$first_label")
     SECRETS_KEYS=("$first_secret")
     SECRETS_CREATED=("$(date +%s)")
@@ -5892,6 +6011,7 @@ show_cli_help() {
     echo -e "    ${GREEN}secret remove-batch${NC} <l1> <l2> ...  Remove multiple secrets (single restart)"
     echo -e "    ${GREEN}secret list${NC}             List all secrets"
     echo -e "    ${GREEN}secret rotate${NC} <label>   Rotate a secret"
+    echo -e "    ${GREEN}secret setkey${NC} <label> [hex]  Change secret key (custom or auto-generate)"
     echo -e "    ${GREEN}secret link${NC} [label]     Show proxy link"
     echo -e "    ${GREEN}secret qr${NC} [label]       Show QR code"
     echo -e "    ${GREEN}secret enable${NC} <label>   Enable a secret"
@@ -6277,6 +6397,7 @@ cli_main() {
                     ;;
                 list)    secret_list ;;
                 rotate)  check_root; secret_rotate "$1" ;;
+                setkey)  check_root; secret_set_key "$1" "${2:-}" ;;
                 link)    get_proxy_link_https "${1:-}"; echo "" ;;
                 qr)      local link; link=$(get_proxy_link_https "${1:-}") && show_qr "$link" ;;
                 enable)  check_root; secret_toggle "$1" enable ;;
@@ -7168,6 +7289,7 @@ show_secrets_menu() {
         echo -e "  ${DIM}[6]${NC} Batch add secrets"
         echo -e "  ${DIM}[7]${NC} Batch remove secrets"
         echo -e "  ${DIM}[8]${NC} Edit note/description"
+        echo -e "  ${DIM}[9]${NC} Change secret key"
         echo -e "  ${DIM}[0]${NC} Back"
 
         local choice
@@ -7264,6 +7386,18 @@ show_secrets_menu() {
                 fi
                 if [ -n "$note_label" ]; then
                     secret_edit_note "$note_label" || true
+                fi
+                press_any_key
+                ;;
+            9)
+                echo -en "  ${BOLD}Label or # to change key:${NC} "
+                local key_label
+                read -r key_label
+                if [[ "$key_label" =~ ^[0-9]+$ ]] && [ "$key_label" -ge 1 ] && [ "$key_label" -le "${#SECRETS_LABELS[@]}" ]; then
+                    key_label="${SECRETS_LABELS[$((key_label - 1))]}"
+                fi
+                if [ -n "$key_label" ]; then
+                    secret_set_key "$key_label" || true
                 fi
                 press_any_key
                 ;;
