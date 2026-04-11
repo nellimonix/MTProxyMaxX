@@ -4325,34 +4325,28 @@ get_cached_ip() {
     echo "$ip"
 }
 
-# Minimal Telegram send
+# Minimal Telegram send (process substitution avoids temp files, keeps token out of process list)
 tg_send() {
     local msg
-    msg=$(printf '%b' "$1")   # expand literal \n to real newlines
+    msg=$(printf '%b' "$1")
     local label="${TELEGRAM_SERVER_LABEL:-MTProxyMax}"
     local _ip; _ip=$(get_cached_ip)
     [ -n "$_ip" ] && msg="[$(_esc "$label") | ${_ip}] ${msg}" || msg="[$(_esc "$label")] ${msg}"
-    local _cfg=$(mktemp /tmp/.mtproxymax-tg.XXXXXX)
-    chmod 600 "$_cfg"
-    printf 'url = "https://api.telegram.org/bot%s/sendMessage"\n' "$TELEGRAM_BOT_TOKEN" > "$_cfg"
-    curl -s --max-time 10 -X POST -K "$_cfg" \
+    curl -s --max-time 10 -X POST \
+        -K <(printf 'url = "https://api.telegram.org/bot%s/sendMessage"\n' "$TELEGRAM_BOT_TOKEN") \
         --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
         --data-urlencode "text=${msg}" \
         --data-urlencode "parse_mode=Markdown" >/dev/null 2>&1
-    rm -f "$_cfg"
 }
 
 tg_send_photo() {
     local photo="$1" caption="${2:-}"
-    local _cfg=$(mktemp /tmp/.mtproxymax-tg.XXXXXX)
-    chmod 600 "$_cfg"
-    printf 'url = "https://api.telegram.org/bot%s/sendPhoto"\n' "$TELEGRAM_BOT_TOKEN" > "$_cfg"
-    curl -s --max-time 15 -X POST -K "$_cfg" \
+    curl -s --max-time 15 -X POST \
+        -K <(printf 'url = "https://api.telegram.org/bot%s/sendPhoto"\n' "$TELEGRAM_BOT_TOKEN") \
         --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
         --data-urlencode "photo=${photo}" \
         --data-urlencode "caption=[$(_esc "${TELEGRAM_SERVER_LABEL:-MTProxyMax}")] ${caption}" \
         --data-urlencode "parse_mode=Markdown" >/dev/null 2>&1
-    rm -f "$_cfg"
 }
 
 # Send QR code image for a proxy secret (no text URL — avoids Telegram bot bans)
@@ -4542,12 +4536,10 @@ get_cum_user_traffic() { echo "${_cum_user_in[$1]:-0} ${_cum_user_out[$1]:-0}"; 
 process_commands() {
     local offset=$(cat "$OFFSET_FILE" 2>/dev/null || echo "0")
     [[ "$offset" =~ ^[0-9]+$ ]] || offset="0"
-    local _cfg=$(mktemp /tmp/.mtproxymax-tg.XXXXXX)
-    chmod 600 "$_cfg"
-    printf 'url = "https://api.telegram.org/bot%s/getUpdates?offset=%s&timeout=25"\n' "$TELEGRAM_BOT_TOKEN" "$offset" > "$_cfg"
     local updates
-    updates=$(curl -s --max-time 30 -K "$_cfg" 2>/dev/null)
-    rm -f "$_cfg"
+    updates=$(curl -s --max-time 30 \
+        -K <(printf 'url = "https://api.telegram.org/bot%s/getUpdates?offset=%s&timeout=25"\n' "$TELEGRAM_BOT_TOKEN" "$offset") \
+        2>/dev/null)
     [ -z "$updates" ] && return
 
     if command -v python3 &>/dev/null; then
