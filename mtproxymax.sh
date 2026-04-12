@@ -7079,8 +7079,13 @@ cli_main() {
                         save_settings
                         log_success "Domain changed to ${new_domain}"
                         log_warn "Existing proxy links still encode the old domain"
-                        echo -en "  ${BOLD}Rotate all secrets for new domain? [Y/n]:${NC} "
-                        local _rot; read -r _rot
+                        local _rot="y"
+                        if [ -t 0 ]; then
+                            echo -en "  ${BOLD}Rotate all secrets for new domain? [Y/n]:${NC} "
+                            read -r _rot || _rot="y"
+                        else
+                            log_info "Non-interactive mode: rotating secrets and restarting automatically"
+                        fi
                         if [[ ! "$_rot" =~ ^[nN] ]]; then
                             local _ri
                             for _ri in "${!SECRETS_LABELS[@]}"; do
