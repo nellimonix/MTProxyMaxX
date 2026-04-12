@@ -6845,11 +6845,14 @@ cli_main() {
             case "$subcmd" in
                 add)
                     check_root
-                    local _no_restart="false"
-                    [[ "${*}" == *"--no-restart"* ]] && _no_restart="true"
-                    local _args=()
-                    for _a in "$@"; do [[ "$_a" != "--no-restart" ]] && _args+=("$_a"); done
-                    secret_add "${_args[0]:-}" "${_args[1]:-}" "$_no_restart"
+                    local _no_restart="false" _add_label="" _add_secret=""
+                    while [ $# -gt 0 ]; do
+                        case "$1" in
+                            --no-restart) _no_restart="true" ;;
+                            *) [ -z "$_add_label" ] && _add_label="$1" || _add_secret="$1" ;;
+                        esac; shift
+                    done
+                    secret_add "$_add_label" "$_add_secret" "$_no_restart"
                     ;;
                 add-batch)
                     check_root
@@ -6859,11 +6862,14 @@ cli_main() {
                     ;;
                 remove)
                     check_root
-                    local _no_restart="false"
-                    [[ "${*}" == *"--no-restart"* ]] && _no_restart="true"
-                    local _args=()
-                    for _a in "$@"; do [[ "$_a" != "--no-restart" ]] && _args+=("$_a"); done
-                    secret_remove "${_args[0]:-}" "false" "$_no_restart"
+                    local _no_restart="false" _rm_label=""
+                    while [ $# -gt 0 ]; do
+                        case "$1" in
+                            --no-restart) _no_restart="true" ;;
+                            *) [ -z "$_rm_label" ] && _rm_label="$1" ;;
+                        esac; shift
+                    done
+                    secret_remove "$_rm_label" "false" "$_no_restart"
                     ;;
                 remove-batch)
                     check_root
