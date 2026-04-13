@@ -3919,6 +3919,12 @@ self_update() {
         if [ "$_local_hash" = "$_remote_hash" ]; then
             log_success "Script is already up to date (v${_new_ver:-${VERSION}})"
             rm -f "$_tmp" "$_UPDATE_BADGE"
+            # Update stored SHA so background check doesn't re-trigger the badge
+            local _new_sha
+            _new_sha=$(curl -fsSL --connect-timeout 5 --max-time 10 \
+                "https://api.github.com/repos/${GITHUB_REPO}/commits/main" \
+                -H "Accept: application/vnd.github.sha" 2>/dev/null) || true
+            [ -n "$_new_sha" ] && [ ${#_new_sha} -ge 40 ] && echo "${_new_sha:0:40}" > "$_UPDATE_SHA_FILE" 2>/dev/null || true
         else
             log_info "Update found: v${_new_ver:-?} (installed: v${VERSION})"
             echo -en "  ${BOLD}Update now? [y/N]:${NC} "
