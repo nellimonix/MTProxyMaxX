@@ -5,7 +5,7 @@
     One script. Full control. Zero hassle.
   </p>
   <p align="center">
-    <img src="https://img.shields.io/badge/version-1.0.5-brightgreen" alt="Version"/>
+    <img src="https://img.shields.io/badge/version-1.0.6-brightgreen" alt="Version"/>
     <img src="https://img.shields.io/badge/license-MIT-blue" alt="License"/>
     <img src="https://img.shields.io/badge/engine-Rust_(telemt_3.x)-orange" alt="Engine"/>
     <img src="https://img.shields.io/badge/platform-Linux-lightgrey" alt="Platform"/>
@@ -585,6 +585,28 @@ mtproxymax telegram remove              # Remove bot completely
 ---
 
 ## 📋 Changelog
+
+### v1.0.6 — Profiles, Archive, Search, Info, Port Check & More
+
+- `secret info <label>` — full detail view (limits, live traffic, link, QR)
+- `secret search <query>` — find secrets by partial label or notes
+- `secret archive/unarchive` — soft-delete and restore secrets
+- `secret top [traffic|conns]` — top N users at a glance
+- `secret generate-links [txt|html]` — bulk export links with QR codes
+- `config` — display current engine config
+- `uptime` — one-line scriptable output for monitoring
+- `notify <message>` — send custom Telegram notification
+- `port-check` — test if proxy port is reachable from outside
+- `profile save|load|list|delete` — named config snapshots
+- `mask-backend [host:port]` — set mask backend from CLI/TUI ([#71](https://github.com/SamNet-dev/MTProxyMax/issues/71))
+- Metrics bound to 127.0.0.1 only ([#65](https://github.com/SamNet-dev/MTProxyMax/issues/65))
+- Fix domain change exit in non-TTY ([#64](https://github.com/SamNet-dev/MTProxyMax/pull/64))
+- Fix empty label in non-TTY secret add/remove ([#66](https://github.com/SamNet-dev/MTProxyMax/issues/66))
+- Fix upstream table column alignment ([#67](https://github.com/SamNet-dev/MTProxyMax/issues/67))
+- Fix false "Update available" badge ([#68](https://github.com/SamNet-dev/MTProxyMax/issues/68))
+- Fix invisible "Enter choice" prompt ([#69](https://github.com/SamNet-dev/MTProxyMax/issues/69))
+- Fix bot uptime always 0m ([#70](https://github.com/SamNet-dev/MTProxyMax/issues/70))
+- Telegram bot: instant response, no temp files ([#62](https://github.com/SamNet-dev/MTProxyMax/issues/62))
 
 ### v1.0.5 — Engine v3.4.0, Clone, Bulk-Extend, Doctor, Stats & More
 
