@@ -5,7 +5,7 @@
     One script. Full control. Zero hassle.
   </p>
   <p align="center">
-    <img src="https://img.shields.io/badge/version-1.0.7-brightgreen" alt="Version"/>
+    <img src="https://img.shields.io/badge/version-1.0.8-brightgreen" alt="Version"/>
     <img src="https://img.shields.io/badge/license-MIT-blue" alt="License"/>
     <img src="https://img.shields.io/badge/engine-Rust_(telemt_3.x)-orange" alt="Engine"/>
     <img src="https://img.shields.io/badge/platform-Linux-lightgrey" alt="Platform"/>
@@ -820,6 +820,9 @@ mtproxymax notify <message>             # Send custom message via Telegram bot
 mtproxymax telegram setup               # Interactive bot setup
 mtproxymax telegram status              # Show bot status
 mtproxymax telegram test                # Send test message
+mtproxymax telegram interval <hours>    # Change report interval (1-168h)
+mtproxymax telegram label <name>        # Change server label in notifications
+mtproxymax telegram alerts <on|off>     # Enable/disable down/recovery alerts
 mtproxymax telegram disable             # Disable bot
 mtproxymax telegram remove              # Remove bot completely
 ```
