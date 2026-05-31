@@ -11,7 +11,7 @@ set -eo pipefail
 export LC_NUMERIC=C
 
 # ── Section 1: Initialization ────────────────────────────────
-VERSION="1.0.8"
+VERSION="1.0.9"
 SCRIPT_NAME="mtproxymax"
 INSTALL_DIR="/opt/mtproxymax"
 CONFIG_DIR="${INSTALL_DIR}/mtproxy"
@@ -26,8 +26,8 @@ REPLICATION_FILE="${INSTALL_DIR}/replication.conf"
 REPLICATION_SSH_DIR="${INSTALL_DIR}/.ssh"
 CONTAINER_NAME="mtproxymax"
 DOCKER_IMAGE_BASE="mtproxymax-telemt"
-TELEMT_MIN_VERSION="3.4.11"
-TELEMT_COMMIT="3bd5637"  # Pinned: v3.4.11 — persistent quota, per-user deny lists, TLS cert budget, security hardening
+TELEMT_MIN_VERSION="3.4.13"
+TELEMT_COMMIT="b720906"  # Pinned: v3.4.13 — ServerHello cipher realism, MR/ME contention fixes, Control API hyphen aliases, quota-reset validation
 GITHUB_REPO="nellimonix/MTProxyMax"
 REGISTRY_IMAGE="ghcr.io/nellimonix/mtproxymax-telemt"
 
@@ -5503,7 +5503,7 @@ self_update() {
             log_error "Downloaded script has syntax errors — aborting"
             rm -f "$_tmp"; return 1
         fi
-        if ! grep -q "GITHUB_REPO=\"SamNet-dev/MTProxyMax\"" "$_tmp" 2>/dev/null; then
+        if ! grep -q "GITHUB_REPO=\"${GITHUB_REPO}\"" "$_tmp" 2>/dev/null; then
             log_error "Downloaded file doesn't look like MTProxyMax — aborting"
             rm -f "$_tmp"; return 1
         fi

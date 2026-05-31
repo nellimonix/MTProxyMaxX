@@ -5,7 +5,7 @@
     One script. Full control. Zero hassle.
   </p>
   <p align="center">
-    <img src="https://img.shields.io/badge/version-1.0.8-brightgreen" alt="Version"/>
+    <img src="https://img.shields.io/badge/version-1.0.9-brightgreen" alt="Version"/>
     <img src="https://img.shields.io/badge/license-MIT-blue" alt="License"/>
     <img src="https://img.shields.io/badge/engine-Rust_(telemt_3.x)-orange" alt="Engine"/>
     <img src="https://img.shields.io/badge/platform-Linux-lightgrey" alt="Platform"/>
@@ -991,6 +991,15 @@ mtproxymax update                       # Check for script + engine updates
 - `secret setkey <label> [hex]` — replace an existing profile's key with one you provide (or auto-generate) without losing traffic counters, limits, notes, or expiry
 - New TUI entry **[9] Change secret key** under Secret Management
 - Hot-reload on key change via `SIGHUP` (no dropped connections); duplicate-key detection; `ee`/`dd`-prefix and domain-hex auto-stripping
+
+### v1.0.9 — Engine v3.4.13, Auto-update Fork Fix
+
+- Engine v3.4.13 (3.4.12 → 3.4.13):
+  - **TLS:** ServerHello now selects a TLS 1.3 cipher suite that is actually offered by the ClientHello; safer emulated extension ordering; removed ALPN plaintext exposure in fake payloads
+  - **Performance:** reduced MR/ME routing-state contention under load, bounded writer-queue waits during backpressure, reader buffer reuse, atomic pressure-eviction budget claims
+  - **Control API:** proper `405 Method Not Allowed` responses, hyphenated endpoint aliases alongside underscore routes, stricter quota-reset validation
+  - **Fixes:** `general.disable_colors` now also suppresses ANSI sequences in MAESTRO status lines
+- Fix: `update` validates the downloaded script against the configured fork repo (`GITHUB_REPO`) instead of a hardcoded upstream slug — self-update from the fork no longer aborts with "doesn't look like MTProxyMax"
 
 ### v1.0.8 — Engine v3.4.11, Security Hardening, Persistent Quotas
 
