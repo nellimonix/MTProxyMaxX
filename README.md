@@ -992,6 +992,18 @@ mtproxymax update                       # Check for script + engine updates
 - New TUI entry **[9] Change secret key** under Secret Management
 - Hot-reload on key change via `SIGHUP` (no dropped connections); duplicate-key detection; `ee`/`dd`-prefix and domain-hex auto-stripping
 
+### v1.0.8 — Engine v3.4.11, Security Hardening, Persistent Quotas
+
+- Engine v3.4.11 — 3 upstream releases (3.4.9, 3.4.10, 3.4.11) with major security and performance improvements:
+  - **Security:** constant-time API authorization, PROXY protocol pre-validation (reject untrusted sources before reading header), bounded API/metrics connections with HTTP timeouts
+  - **TLS:** full certificate budget bookkeeping, shard TLS cert budget, fixed domain-aware masking fallback for extra `tls_domains`, TLS front profile health metrics
+  - **Quota:** persistent per-user quota state (`quota_state_path`), runtime quota reset endpoint (`POST /v1/users/{user}/reset-quota`), bounded quota contention handling
+  - **Access control:** per-user source IP/CIDR deny lists (`access.user_source_deny`), strict config unknown-key detection (`general.config_strict`)
+  - **Performance:** IP tracker cleanup pressure reduction, hot-path cleanup, ME admission event-driven wakeup, bounded ME child task join with abort accounting
+  - **Observability:** class-based rejected connection metrics, handshake failure metrics, quota contention/cancellation/flow-wait metrics, updated Grafana dashboard
+  - **Fixes:** TimeWindow IP limiting fix, WorkingDirectory behavior fix, multi-domain TLS fetcher, `tls_domains` validation
+  - **Dependencies:** rustls-webpki 0.103.12 → 0.103.13
+
 ### v1.0.7 — Tags, Templates, Migration, Maintenance, IP Banlist & More
 
 - `secret tag/untag/tags` + `secret list --tag` — group users, run bulk ops by tag
