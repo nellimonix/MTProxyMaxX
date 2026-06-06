@@ -2,7 +2,7 @@
 # ═══════════════════════════════════════════════════════════════
 #  MTProxyMax v1.0 — The Ultimate Telegram Proxy Manager
 #  Copyright (c) 2026 SamNet Technologies
-#  https://github.com/nellimonix/MTProxyMaxX
+#  https://github.com/vldslvshvchk/MTProxyMaxX
 #
 #  Engine: telemt 3.x (Rust+Tokio)
 #  License: MIT
@@ -28,8 +28,8 @@ CONTAINER_NAME="mtproxymax"
 DOCKER_IMAGE_BASE="mtproxymax-telemt"
 TELEMT_MIN_VERSION="3.4.15"
 TELEMT_COMMIT="504cafb"  # Pinned: v3.4.15 — Briefschlitz
-GITHUB_REPO="nellimonix/MTProxyMaxX"
-REGISTRY_IMAGE="ghcr.io/nellimonix/mtproxymax-telemt"
+GITHUB_REPO="vldslvshvchk/MTProxyMaxX"
+REGISTRY_IMAGE="ghcr.io/vldslvshvchk/mtproxymax-telemt"
 
 # Bash version check
 if [ "${BASH_VERSINFO[0]:-0}" -lt 4 ]; then
