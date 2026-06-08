@@ -363,6 +363,7 @@ BANNER_ART
     ╔═════════════════ M A X ══════════════════════╗
     ║  The Ultimate Telegram Proxy Manager v${VERSION}$(printf '%*s' $((7 - ${#VERSION})) '')║
     ║             SamNet Technologies              ║
+    ║               fork by llimonix               ║
     ╚══════════════════════════════════════════════╝
 
 BANNER
