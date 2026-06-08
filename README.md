@@ -5,7 +5,7 @@
     One script. Full control. Zero hassle.
   </p>
   <p align="center">
-    <img src="https://img.shields.io/badge/version-1.0.9-brightgreen" alt="Version"/>
+    <img src="https://img.shields.io/badge/version-1.0.10-brightgreen" alt="Version"/>
     <img src="https://img.shields.io/badge/license-MIT-blue" alt="License"/>
     <img src="https://img.shields.io/badge/engine-Rust_(telemt_3.x)-orange" alt="Engine"/>
     <img src="https://img.shields.io/badge/platform-Linux-lightgrey" alt="Platform"/>
@@ -991,6 +991,12 @@ mtproxymax update                       # Check for script + engine updates
 - `secret setkey <label> [hex]` — replace an existing profile's key with one you provide (or auto-generate) without losing traffic counters, limits, notes, or expiry
 - New TUI entry **[9] Change secret key** under Secret Management
 - Hot-reload on key change via `SIGHUP` (no dropped connections); duplicate-key detection; `ee`/`dd`-prefix and domain-hex auto-stripping
+
+### v1.0.10 — Engine v3.4.15
+
+- Engine v3.4.15 (3.4.13 → 3.4.15):
+  - https://github.com/telemt/telemt/releases/tag/3.4.15
+  - https://github.com/telemt/telemt/releases/tag/3.4.14
 
 ### v1.0.9 — Engine v3.4.13, Auto-update Fork Fix
 
