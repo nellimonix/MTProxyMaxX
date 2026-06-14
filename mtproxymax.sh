@@ -11,7 +11,7 @@ set -eo pipefail
 export LC_NUMERIC=C
 
 # ── Section 1: Initialization ────────────────────────────────
-VERSION="1.0.10"
+VERSION="1.0.11"
 SCRIPT_NAME="mtproxymax"
 INSTALL_DIR="/opt/mtproxymax"
 CONFIG_DIR="${INSTALL_DIR}/mtproxy"
@@ -26,8 +26,8 @@ REPLICATION_FILE="${INSTALL_DIR}/replication.conf"
 REPLICATION_SSH_DIR="${INSTALL_DIR}/.ssh"
 CONTAINER_NAME="mtproxymax"
 DOCKER_IMAGE_BASE="mtproxymax-telemt"
-TELEMT_MIN_VERSION="3.4.15"
-TELEMT_COMMIT="504cafb"  # Pinned: v3.4.15 — MSS tuning
+TELEMT_MIN_VERSION="3.4.18"
+TELEMT_COMMIT="9dc6772"  # Pinned: v3.4.18 — SYN limiter, TLS-F application flight, key shares
 GITHUB_REPO="nellimonix/MTProxyMaxX"
 REGISTRY_IMAGE="ghcr.io/nellimonix/mtproxymax-telemt"
 
