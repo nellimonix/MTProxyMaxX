@@ -11,7 +11,7 @@ set -eo pipefail
 export LC_NUMERIC=C
 
 # ── Section 1: Initialization ────────────────────────────────
-VERSION="1.0.11"
+VERSION="1.0.12"
 SCRIPT_NAME="mtproxymax"
 INSTALL_DIR="/opt/mtproxymax"
 CONFIG_DIR="${INSTALL_DIR}/mtproxy"
@@ -26,8 +26,8 @@ REPLICATION_FILE="${INSTALL_DIR}/replication.conf"
 REPLICATION_SSH_DIR="${INSTALL_DIR}/.ssh"
 CONTAINER_NAME="mtproxymax"
 DOCKER_IMAGE_BASE="mtproxymax-telemt"
-TELEMT_MIN_VERSION="3.4.18"
-TELEMT_COMMIT="9dc6772"  # Pinned: v3.4.18 — SYN limiter, TLS-F application flight, key shares
+TELEMT_MIN_VERSION="3.4.19"
+TELEMT_COMMIT="5eaccee"  # Pinned: v3.4.19 — config API nested sub-table fix, advanced relay mode, hardened KDF tuple, MSS PPS optimization
 GITHUB_REPO="nellimonix/MTProxyMaxX"
 REGISTRY_IMAGE="ghcr.io/nellimonix/mtproxymax-telemt"
 
@@ -104,6 +104,7 @@ PROXY_PORT=443
 PROXY_METRICS_PORT=9090
 PROXY_DOMAIN="cloudflare.com"
 PROXY_CONCURRENCY=8192
+CLIENT_MSS="tspu"
 PROXY_CPUS=""
 PROXY_MEMORY=""
 CUSTOM_IP=""
@@ -596,6 +597,7 @@ PROXY_PORT='${PROXY_PORT}'
 PROXY_METRICS_PORT='${PROXY_METRICS_PORT}'
 PROXY_DOMAIN='${PROXY_DOMAIN}'
 PROXY_CONCURRENCY='${PROXY_CONCURRENCY}'
+CLIENT_MSS='${CLIENT_MSS}'
 PROXY_CPUS='${PROXY_CPUS}'
 PROXY_MEMORY='${PROXY_MEMORY}'
 CUSTOM_IP='${CUSTOM_IP}'
@@ -676,7 +678,7 @@ load_settings() {
 
         # Whitelist of allowed keys
         case "$key" in
-            PROXY_PORT|PROXY_METRICS_PORT|PROXY_DOMAIN|PROXY_CONCURRENCY|\
+            PROXY_PORT|PROXY_METRICS_PORT|PROXY_DOMAIN|PROXY_CONCURRENCY|CLIENT_MSS|\
             PROXY_CPUS|PROXY_MEMORY|CUSTOM_IP|FAKE_CERT_LEN|PROXY_PROTOCOL|PROXY_PROTOCOL_TRUSTED_CIDRS|AD_TAG|GEOBLOCK_MODE|BLOCKLIST_COUNTRIES|\
             MASKING_ENABLED|MASKING_HOST|MASKING_PORT|MASKING_RELAY_MAX_BYTES|UNKNOWN_SNI_ACTION|\
             PROXY_SECRET_URL|PROXY_CONFIG_V4_URL|PROXY_CONFIG_V6_URL|\
@@ -1134,6 +1136,7 @@ $([ -n "$ad_tag" ] && echo "ad_tag = \"$ad_tag\"" || echo "# ad_tag = \"\"  # Ge
 $([ -n "${PROXY_SECRET_URL:-}" ] && echo "proxy_secret_url = \"${PROXY_SECRET_URL}\"")
 $([ -n "${PROXY_CONFIG_V4_URL:-}" ] && echo "proxy_config_v4_url = \"${PROXY_CONFIG_V4_URL}\"")
 $([ -n "${PROXY_CONFIG_V6_URL:-}" ] && echo "proxy_config_v6_url = \"${PROXY_CONFIG_V6_URL}\"")
+tg_connect = 10
 
 [general.modes]
 classic = false
@@ -1153,10 +1156,10 @@ proxy_protocol = ${PROXY_PROTOCOL:-false}
 $([ "$PROXY_PROTOCOL" = "true" ] && [ -n "$PROXY_PROTOCOL_TRUSTED_CIDRS" ] && echo "proxy_protocol_trusted_cidrs = [$(echo "$PROXY_PROTOCOL_TRUSTED_CIDRS" | sed 's/[[:space:]]*,[[:space:]]*/", "/g;s/^/"/;s/$/"/' )]")
 metrics_listen = "127.0.0.1:${metrics_port}"
 metrics_whitelist = ["127.0.0.1", "::1"]
+client_mss = "${CLIENT_MSS:-tspu}"
 
 [timeouts]
 client_handshake = 30
-tg_connect = 10
 client_keepalive = 15
 client_ack = 90
 
@@ -1327,7 +1330,7 @@ _fetch_metrics() {
         echo "$_METRICS_CACHE"
         return 0
     fi
-    _METRICS_CACHE=$(curl -s --max-time 2 "http://127.0.0.1:${PROXY_METRICS_PORT:-9090}/metrics" 2>/dev/null)
+    _METRICS_CACHE=$(curl -s --max-time 2 "http://127.0.0.1:${PROXY_METRICS_PORT:-9090}/metrics" 2>/dev/null) || true
     _METRICS_CACHE_AGE=$now
     [ -n "$_METRICS_CACHE" ] && echo "$_METRICS_CACHE" && return 0
     return 1
@@ -5668,7 +5671,7 @@ telegram_send_message() {
         --data-urlencode "chat_id=${chat_id}" \
         --data-urlencode "text=${full_msg}" \
         --data-urlencode "parse_mode=Markdown" \
-        2>/dev/null)
+        2>/dev/null) || true
     local rc=$?
     rm -f "$_cfg"
     [ $rc -ne 0 ] && return 1
@@ -5695,7 +5698,7 @@ telegram_send_photo() {
         --data-urlencode "photo=${photo_url}" \
         --data-urlencode "caption=${caption}" \
         --data-urlencode "parse_mode=Markdown" \
-        >/dev/null 2>&1
+        >/dev/null 2>&1 || true
     local rc=$?
     rm -f "$_cfg"
     return $rc
@@ -5710,7 +5713,7 @@ telegram_get_chat_id() {
     _cfg=$(_mktemp) || return 1
     printf 'url = "https://api.telegram.org/bot%s/getUpdates"\n' "$token" > "$_cfg"
     local response
-    response=$(curl -s --max-time 10 -K "$_cfg" 2>/dev/null)
+    response=$(curl -s --max-time 10 -K "$_cfg" 2>/dev/null) || true
     rm -f "$_cfg"
 
     local chat_id
@@ -5810,7 +5813,7 @@ telegram_setup_wizard() {
     _cfg=$(_mktemp) || return 1
     printf 'url = "https://api.telegram.org/bot%s/getMe"\n' "$token" > "$_cfg"
     local response
-    response=$(curl -s --max-time 10 -K "$_cfg" 2>/dev/null)
+    response=$(curl -s --max-time 10 -K "$_cfg" 2>/dev/null) || true
     rm -f "$_cfg"
     if ! echo "$response" | grep -q '"ok":true'; then
         log_error "Invalid token — bot not found"
@@ -6106,12 +6109,11 @@ save_traffic() {
 update_traffic() {
     # Fetch metrics once for both global and per-user stats
     local _metrics
-    _metrics=$(curl -s --max-time 2 "http://127.0.0.1:${PROXY_METRICS_PORT:-9090}/metrics" 2>/dev/null)
+    _metrics=$(curl -s --max-time 2 "http://127.0.0.1:${PROXY_METRICS_PORT:-9090}/metrics" 2>/dev/null) || true
+    [ -z "$_metrics" ] && return 0
     local cur_in cur_out
-    if [ -n "$_metrics" ]; then
-        cur_in=$(echo "$_metrics"|awk '/^telemt_user_octets_from_client\{/{s+=$NF}END{printf "%.0f",s}')
-        cur_out=$(echo "$_metrics"|awk '/^telemt_user_octets_to_client\{/{s+=$NF}END{printf "%.0f",s}')
-    fi
+    cur_in=$(echo "$_metrics"|awk '/^telemt_user_octets_from_client\{/{s+=$NF}END{printf "%.0f",s}')
+    cur_out=$(echo "$_metrics"|awk '/^telemt_user_octets_to_client\{/{s+=$NF}END{printf "%.0f",s}')
     cur_in=${cur_in:-0}; cur_out=${cur_out:-0}
 
     # Compute deltas (torware pattern: detect container restart by negative delta)
@@ -6166,7 +6168,7 @@ process_commands() {
     local updates
     updates=$(curl -s --max-time 30 \
         -K <(printf 'url = "https://api.telegram.org/bot%s/getUpdates?offset=%s&timeout=25"\n' "$TELEGRAM_BOT_TOKEN" "$offset") \
-        2>/dev/null)
+        2>/dev/null) || true
     [ -z "$updates" ] && return
 
     if command -v python3 &>/dev/null; then
@@ -6225,7 +6227,7 @@ _process_cmd() {
             local msg="📋 *Secrets*\n\n"
             # Single awk pass for all user metrics
             local _sec_metrics _parsed_users=""
-            _sec_metrics=$(curl -s --max-time 2 "http://127.0.0.1:${PROXY_METRICS_PORT:-9090}/metrics" 2>/dev/null)
+            _sec_metrics=$(curl -s --max-time 2 "http://127.0.0.1:${PROXY_METRICS_PORT:-9090}/metrics" 2>/dev/null) || true
             if [ -n "$_sec_metrics" ]; then
                 _parsed_users=$(echo "$_sec_metrics" | awk '
                     function lbl(s, k,    p, q) { p=index(s,k"=\""); if(!p) return ""; s=substr(s,p+length(k)+2); q=index(s,"\""); return q ? substr(s,1,q-1) : "" }

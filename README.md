@@ -5,7 +5,7 @@
     One script. Full control. Zero hassle.
   </p>
   <p align="center">
-    <img src="https://img.shields.io/badge/version-1.0.11-brightgreen" alt="Version"/>
+    <img src="https://img.shields.io/badge/version-1.0.12-brightgreen" alt="Version"/>
     <img src="https://img.shields.io/badge/license-MIT-blue" alt="License"/>
     <img src="https://img.shields.io/badge/engine-Rust_(telemt_3.x)-orange" alt="Engine"/>
     <img src="https://img.shields.io/badge/platform-Linux-lightgrey" alt="Platform"/>
@@ -991,6 +991,18 @@ mtproxymax update                       # Check for script + engine updates
 - `secret setkey <label> [hex]` — replace an existing profile's key with one you provide (or auto-generate) without losing traffic counters, limits, notes, or expiry
 - New TUI entry **[9] Change secret key** under Secret Management
 - Hot-reload on key change via `SIGHUP` (no dropped connections); duplicate-key detection; `ee`/`dd`-prefix and domain-hex auto-stripping
+
+### v1.0.12 — Engine v3.4.19, Upstream Sync
+
+- Engine v3.4.19 (3.4.18 → 3.4.19):
+  - Config API no longer corrupts nested sub-tables on save
+  - Advanced relay mode, hardened KDF tuple, updated VersionD padding + shared MTProto framing
+  - MSS raised after handshake to reduce packets-per-second overhead
+  - https://github.com/telemt/telemt/releases/tag/3.4.19
+- Merged upstream fixes from `SamNet-dev/MTProxyMax`:
+  - Prevent Telegram `curl` timeouts from aborting the script under `set -eo pipefail` ([#101](https://github.com/SamNet-dev/MTProxyMax/issues/101))
+  - Prevent traffic-counter inflation when the metrics endpoint times out ([#99](https://github.com/SamNet-dev/MTProxyMax/issues/99))
+  - New `client_mss` option (default `tspu`); `tg_connect` moved to the `[general]` config section ([#102](https://github.com/SamNet-dev/MTProxyMax/issues/102))
 
 ### v1.0.11 — Engine v3.4.18
 
